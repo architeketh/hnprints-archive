@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hnPrints Archive</title>
+<style>
+  :root { --bg:#faf8f4; --card:#fff; --ink:#222; --muted:#6b6b6b; --line:#e4dfd5; --accent:#8a3b12; --warn:#b3261e; --ok:#1e7a3c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161513; --card:#201f1c; --ink:#eee; --muted:#9a968d; --line:#35322d; --accent:#e0905a; --warn:#ff8a80; --ok:#6fcf8f; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 16px 8px; max-width:1200px; margin:0 auto; }
+  h1 { margin:0 0 4px; font-size:1.5rem; }
+  .sub { color:var(--muted); margin:0; }
+  .controls { max-width:1200px; margin:0 auto; padding:8px 16px 16px; display:flex; flex-wrap:wrap; gap:8px; }
+  input, select, button { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
+  input[type=search] { flex:1 1 240px; }
+  button { cursor:pointer; }
+  button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .grid { max-width:1200px; margin:0 auto; padding:0 16px 40px; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+  .card:hover { border-color:var(--accent); }
+  .thumb { aspect-ratio:1/1; background:#0001; width:100%; object-fit:cover; display:block; }
+  .card .body { padding:10px 12px 12px; }
+  .card h3 { margin:0 0 6px; font-size:.95rem; line-height:1.3; }
+  .meta { color:var(--muted); font-size:.85rem; display:flex; justify-content:space-between; gap:8px; }
+  .flag { display:inline-block; font-size:.75rem; padding:1px 6px; border-radius:6px; border:1px solid var(--warn); color:var(--warn); margin-top:6px; }
+  dialog { width:min(900px,96vw); max-height:92vh; border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); padding:0; }
+  dialog::backdrop { background:#0008; }
+  .dhead { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--card); }
+  .dbody { padding:16px; display:grid; gap:16px; grid-template-columns:1fr; }
+  @media (min-width:760px) { .dbody { grid-template-columns:1fr 1fr; } }
+  .gallery img { width:100%; border-radius:8px; display:block; margin-bottom:8px; }
+  .row { margin:0 0 12px; }
+  .row b { display:block; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .desc { white-space:pre-wrap; }
+  .tag { display:inline-block; background:#0000000d; border:1px solid var(--line); border-radius:999px; padding:1px 9px; margin:0 4px 4px 0; font-size:.85rem; }
+  .issues { color:var(--warn); }
+  .ok { color:var(--ok); }
+  .count { color:var(--muted); align-self:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>hnPrints Archive</h1>
+  <p class="sub">Review copy of the Etsy listings. Check each one against the shop for accuracy.</p>
+</header>
+
+<div class="controls">
+  <input type="search" id="q" placeholder="Search titles, descriptions, tags…">
+  <select id="sort">
+    <option value="id">Original order</option>
+    <option value="title">Title A–Z</option>
+    <option value="priceLow">Price: low to high</option>
+    <option value="priceHigh">Price: high to low</option>
+  </select>
+  <select id="price"><option value="">All prices</option></select>
+  <button id="flagged" title="Show only listings with possible data problems">Possible problems</button>
+  <span class="count" id="count"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<dialog id="dlg">
+  <div class="dhead"><strong id="dtitle"></strong><button id="close">Close</button></div>
+  <div class="dbody" id="dbody"></div>
+</dialog>
+
+<script>
+let LISTINGS = [];
+let onlyFlagged = false;
+
+// Show the saved local image first; if it isn't there yet, use the Etsy-hosted one.
+function imgTag(img, cls) {
+  const e = document.createElement('img');
+  if (cls) e.className = cls;
+  e.loading = 'lazy';
+  e.alt = '';
+  e.src = img.local;
+  e.onerror = () => { e.onerror = null; e.src = img.url; };
+  return e;
+}
+
+// Simple automatic checks to point you at things worth a second look.
+function problems(l) {
+  const p = [];
+  if (!l.title) p.push('Missing title');
+  if (l.title.length > 140) p.push('Title over 140 characters');
+  if (!l.description || l.description.length < 40) p.push('Very short description');
+  if (!l.price) p.push('Missing price');
+  if (!l.images.length) p.push('No images');
+  if (l.tags.length < 5) p.push('Fewer than 5 tags');
+  if (!l.materials.length) p.push('No materials');
+  if (/[Ââ�]/.test(l.title + l.description)) p.push('Odd characters (encoding?)');
+  return p;
+}
+
+function money(l) { return l.price == null ? '—' : new Intl.NumberFormat('en-US',{style:'currency',currency:l.currency||'USD',maximumFractionDigits:0}).format(l.price); }
+
+function visible() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const pr = document.getElementById('price').value;
+  let list = LISTINGS.filter(l => {
+    if (pr && String(l.price) !== pr) return false;
+    if (onlyFlagged && !problems(l).length) return false;
+    if (!q) return true;
+    return (l.title + ' ' + l.description + ' ' + l.tags.join(' ') + ' ' + l.materials.join(' ')).toLowerCase().includes(q);
+  });
+  const s = document.getElementById('sort').value;
+  if (s === 'title') list.sort((a,b) => a.title.localeCompare(b.title));
+  if (s === 'priceLow') list.sort((a,b) => a.price - b.price);
+  if (s === 'priceHigh') list.sort((a,b) => b.price - a.price);
+  return list;
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const list = visible();
+  document.getElementById('count').textContent = `${list.length} of ${LISTINGS.length} listings`;
+  for (const l of list) {
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.tabIndex = 0;
+    if (l.images[0]) c.appendChild(imgTag(l.images[0], 'thumb'));
+    const b = document.createElement('div');
+    b.className = 'body';
+    const h = document.createElement('h3'); h.textContent = l.title;
+    const m = document.createElement('div'); m.className = 'meta';
+    m.innerHTML = `<span>${money(l)}</span><span>${l.images.length} img · qty ${l.quantity ?? '—'}</span>`;
+    b.append(h, m);
+    const pp = problems(l);
+    if (pp.length) { const f = document.createElement('span'); f.className = 'flag'; f.textContent = pp.length + (pp.length === 1 ? ' possible problem' : ' possible problems'); b.appendChild(f); }
+    c.appendChild(b);
+    c.onclick = () => openDetail(l);
+    c.onkeydown = e => { if (e.key === 'Enter') openDetail(l); };
+    grid.appendChild(c);
+  }
+}
+
+function row(label, node) {
+  const d = document.createElement('div'); d.className = 'row';
+  const b = document.createElement('b'); b.textContent = label;
+  d.appendChild(b);
+  if (typeof node === 'string') d.appendChild(document.createTextNode(node)); else d.appendChild(node);
+  return d;
+}
+
+function openDetail(l) {
+  document.getElementById('dtitle').textContent = `#${l.id}  ${l.title}`;
+  const body = document.getElementById('dbody');
+  body.innerHTML = '';
+  const gal = document.createElement('div'); gal.className = 'gallery';
+  l.images.forEach(i => gal.appendChild(imgTag(i)));
+  const info = document.createElement('div');
+  info.appendChild(row('Title', l.title));
+  info.appendChild(row('Price', `${money(l)}   (qty ${l.quantity ?? '—'})`));
+  const d = document.createElement('div'); d.className = 'desc'; d.textContent = l.description;
+  info.appendChild(row('Description', d));
+  const tags = document.createElement('div'); l.tags.forEach(t => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; tags.appendChild(s); });
+  info.appendChild(row(`Tags (${l.tags.length})`, tags));
+  info.appendChild(row('Materials', l.materials.join(', ') || '—'));
+  if (l.variations.length) info.appendChild(row('Variations', l.variations.map(v => `${v.type}: ${v.name} → ${v.values}`).join('\n')));
+  if (l.sku) info.appendChild(row('SKU', l.sku));
+  info.appendChild(row('Evanston Made', l.evanstonMade ? 'Yes' : 'No'));
+  const pp = problems(l);
+  const chk = document.createElement('div');
+  chk.className = pp.length ? 'issues' : 'ok';
+  chk.textContent = pp.length ? pp.join(' · ') : 'No automatic problems found';
+  info.appendChild(row('Automatic checks', chk));
+  const links = document.createElement('div');
+  links.innerHTML = '<a href="https://www.etsy.com/shop/hnPrints" target="_blank" rel="noopener">Open the shop on Etsy</a>';
+  info.appendChild(row('Compare with', links));
+  body.append(gal, info);
+  document.getElementById('dlg').showModal();
+}
+
+document.getElementById('close').onclick = () => document.getElementById('dlg').close();
+document.getElementById('dlg').addEventListener('click', e => { if (e.target.id === 'dlg') e.target.close(); });
+['q','sort','price'].forEach(id => document.getElementById(id).addEventListener('input', render));
+document.getElementById('flagged').onclick = e => { onlyFlagged = !onlyFlagged; e.target.classList.toggle('on', onlyFlagged); render(); };
+
+fetch('data/listings.json')
+  .then(r => r.json())
+  .then(data => {
+    LISTINGS = data;
+    const prices = [...new Set(data.map(l => l.price))].sort((a,b) => a - b);
+    const sel = document.getElementById('price');
+    prices.forEach(p => { const o = document.createElement('option'); o.value = String(p); o.textContent = '$' + p; sel.appendChild(o); });
+    render();
+  })
+  .catch(() => {
+    document.getElementById('grid').innerHTML = '<p>Could not load data/listings.json. If you opened this file by double-clicking, use the GitHub Pages link instead (see README).</p>';
+  });
+</script>
+</body>
+</html>
