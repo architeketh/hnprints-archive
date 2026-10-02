@@ -73,14 +73,14 @@
 let LISTINGS = [];
 let onlyFlagged = false;
 
-// Show the saved local image first; if it isn't there yet, use the Etsy-hosted one.
+// Load the image from Supabase; if that ever fails, fall back to the original Etsy-hosted one.
 function imgTag(img, cls) {
   const e = document.createElement('img');
   if (cls) e.className = cls;
   e.loading = 'lazy';
   e.alt = '';
-  e.src = img.local;
-  e.onerror = () => { e.onerror = null; e.src = img.url; };
+  e.src = img.supabase || img.url;
+  e.onerror = () => { e.onerror = null; if (e.src !== img.url) e.src = img.url; };
   return e;
 }
 
