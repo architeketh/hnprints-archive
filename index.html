@@ -68,6 +68,7 @@
   <div class="dbody" id="dbody"></div>
 </dialog>
 
+<script src="listings.js"></script>
 <script>
 let LISTINGS = [];
 let onlyFlagged = false;
@@ -182,18 +183,24 @@ document.getElementById('dlg').addEventListener('click', e => { if (e.target.id 
 ['q','sort','price'].forEach(id => document.getElementById(id).addEventListener('input', render));
 document.getElementById('flagged').onclick = e => { onlyFlagged = !onlyFlagged; e.target.classList.toggle('on', onlyFlagged); render(); };
 
-fetch('data/listings.json')
-  .then(r => r.json())
-  .then(data => {
-    LISTINGS = data;
-    const prices = [...new Set(data.map(l => l.price))].sort((a,b) => a - b);
-    const sel = document.getElementById('price');
-    prices.forEach(p => { const o = document.createElement('option'); o.value = String(p); o.textContent = '$' + p; sel.appendChild(o); });
-    render();
-  })
-  .catch(() => {
-    document.getElementById('grid').innerHTML = '<p>Could not load data/listings.json. If you opened this file by double-clicking, use the GitHub Pages link instead (see README).</p>';
-  });
+function start(data) {
+  LISTINGS = data;
+  const prices = [...new Set(data.map(l => l.price))].sort((a,b) => a - b);
+  const sel = document.getElementById('price');
+  prices.forEach(p => { const o = document.createElement('option'); o.value = String(p); o.textContent = '$' + p; sel.appendChild(o); });
+  render();
+}
+
+if (window.LISTINGS_DATA) {
+  start(window.LISTINGS_DATA);
+} else {
+  fetch('data/listings.json')
+    .then(r => r.json())
+    .then(start)
+    .catch(() => {
+      document.getElementById('grid').innerHTML = '<p>Could not load the listing data. Make sure listings.js is uploaded next to index.html.</p>';
+    });
+}
 </script>
 </body>
 </html>
