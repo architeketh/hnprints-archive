@@ -11,32 +11,66 @@
   }
   * { box-sizing:border-box; }
   body { margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--ink); }
+  a { color:var(--accent); }
   header { padding:20px 16px 8px; max-width:1200px; margin:0 auto; }
   h1 { margin:0 0 4px; font-size:1.5rem; }
+  h1 a { color:inherit; text-decoration:none; }
   .sub { color:var(--muted); margin:0; }
+  .crumbs { max-width:1200px; margin:0 auto; padding:4px 16px 0; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .crumbs h2 { margin:0; font-size:1.2rem; }
   .controls { max-width:1200px; margin:0 auto; padding:8px 16px 16px; display:flex; flex-wrap:wrap; gap:8px; }
   input, select, button { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
   input[type=search] { flex:1 1 240px; }
   button { cursor:pointer; }
-  button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.on, button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.small { padding:3px 8px; font-size:.8rem; }
   .grid { max-width:1200px; margin:0 auto; padding:0 16px 40px; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+  .card { position:relative; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
   .card:hover { border-color:var(--accent); }
+  .card.selected { outline:3px solid var(--accent); outline-offset:-3px; }
   .thumb { aspect-ratio:1/1; background:#0001; width:100%; object-fit:cover; display:block; }
   .card .body { padding:10px 12px 12px; }
   .card h3 { margin:0 0 6px; font-size:.95rem; line-height:1.3; }
   .meta { color:var(--muted); font-size:.85rem; display:flex; justify-content:space-between; gap:8px; }
+  .cardcats { color:var(--muted); font-size:.8rem; margin-top:4px; }
+  .cardcheck { position:absolute; top:8px; left:8px; width:24px; height:24px; padding:0; accent-color:var(--accent); cursor:pointer; }
   .flag { display:inline-block; font-size:.75rem; padding:1px 6px; border-radius:6px; border:1px solid var(--warn); color:var(--warn); margin-top:6px; }
+
+  /* Category tiles on the home page */
+  .tiles { max-width:1200px; margin:0 auto; padding:8px 16px 40px; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:20px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; cursor:pointer; }
+  .tile:hover, .tile:focus-visible { border-color:var(--accent); }
+  .tileimg { aspect-ratio:4/3; background:#0001; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:2.5rem; }
+  .tileimg img { width:100%; height:100%; object-fit:cover; display:block; }
+  .tilelabel { padding:10px 14px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .tilelabel strong { font-size:1.05rem; }
+  .tilelabel span { color:var(--muted); font-size:.9rem; white-space:nowrap; }
+  .tileactions { padding:0 14px 12px; display:flex; gap:6px; }
+  .newcat { max-width:1200px; margin:0 auto; padding:8px 16px 0; display:flex; gap:8px; flex-wrap:wrap; }
+  .newcat input { flex:1 1 220px; }
+  .empty { max-width:1200px; margin:0 auto; padding:16px; color:var(--muted); }
+
+  /* Edit mode bars */
+  .editbar, .bulkbar { max-width:1200px; margin:8px auto; padding:10px 16px; border:1px dashed var(--accent); border-radius:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--card); }
+  .bulkbar { position:sticky; top:0; z-index:5; }
+  .editbar .label { font-weight:600; color:var(--accent); }
+  .status { color:var(--muted); font-size:.9rem; flex:1 1 200px; }
+  [hidden] { display:none !important; }
+
   dialog { width:min(900px,96vw); max-height:92vh; border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); padding:0; }
   dialog::backdrop { background:#0008; }
-  .dhead { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--card); }
+  .dhead { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--card); z-index:2; }
   .dbody { padding:16px; display:grid; gap:16px; grid-template-columns:1fr; }
   @media (min-width:760px) { .dbody { grid-template-columns:1fr 1fr; } }
   .gallery img { width:100%; border-radius:8px; display:block; margin-bottom:8px; }
+  .coverpick { grid-column:1/-1; display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+  .coverpick img { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; cursor:pointer; border:2px solid transparent; }
+  .coverpick img:hover { border-color:var(--accent); }
   .row { margin:0 0 12px; }
   .row b { display:block; font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
   .desc { white-space:pre-wrap; }
   .tag { display:inline-block; background:#0000000d; border:1px solid var(--line); border-radius:999px; padding:1px 9px; margin:0 4px 4px 0; font-size:.85rem; }
+  .catcheck { display:block; }
   .issues { color:var(--warn); }
   .ok { color:var(--ok); }
   .count { color:var(--muted); align-self:center; }
@@ -44,24 +78,46 @@
 </head>
 <body>
 <header>
-  <h1>hnPrints Archive</h1>
+  <h1><a href="#/">hnPrints Archive</a></h1>
   <p class="sub">Review copy of the Etsy listings. Check each one against the shop for accuracy.</p>
 </header>
 
-<div class="controls">
-  <input type="search" id="q" placeholder="Search titles, descriptions, tags…">
-  <select id="sort">
-    <option value="id">Original order</option>
-    <option value="title">Title A–Z</option>
-    <option value="priceLow">Price: low to high</option>
-    <option value="priceHigh">Price: high to low</option>
-  </select>
-  <select id="price"><option value="">All prices</option></select>
-  <button id="flagged" title="Show only listings with possible data problems">Possible problems</button>
-  <span class="count" id="count"></span>
+<!-- Edit mode only: open the site with ?edit at the end of the address to see this -->
+<div class="editbar" id="editbar" hidden>
+  <span class="label">Edit mode</span>
+  <span class="status" id="editstatus"></span>
+  <button class="primary" id="download">Download categories.js</button>
+  <button id="discard" hidden>Discard draft</button>
 </div>
 
-<div class="grid" id="grid"></div>
+<!-- Home page: one image tile per category -->
+<section id="home" hidden></section>
+
+<!-- Category / list view -->
+<section id="listview" hidden>
+  <div class="crumbs"><a href="#/">&larr; All categories</a><h2 id="viewtitle"></h2></div>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search titles, descriptions, tags…">
+    <select id="sort">
+      <option value="id">Original order</option>
+      <option value="title">Title A–Z</option>
+      <option value="priceLow">Price: low to high</option>
+      <option value="priceHigh">Price: high to low</option>
+    </select>
+    <select id="price"><option value="">All prices</option></select>
+    <button id="flagged" title="Show only listings with possible data problems">Possible problems</button>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="bulkbar" id="bulkbar" hidden>
+    <strong id="selcount">0 selected</strong>
+    <button id="selall">Select all shown</button>
+    <button id="selnone">Clear</button>
+    <select id="bulkcat"></select>
+    <button class="primary" id="bulkadd">Add selected to category</button>
+    <button id="bulkremove" hidden>Remove selected from this category</button>
+  </div>
+  <div class="grid" id="grid"></div>
+</section>
 
 <dialog id="dlg">
   <div class="dhead"><strong id="dtitle"></strong><button id="close">Close</button></div>
@@ -69,10 +125,20 @@
 </dialog>
 
 <script src="listings.js"></script>
+<script src="categories.js"></script>
 <script>
-let LISTINGS = [];
-let onlyFlagged = false;
+const $ = id => document.getElementById(id);
+const EDIT = new URLSearchParams(location.search).has('edit');
+const DRAFT_KEY = 'hnprints-categories-draft';
 
+let LISTINGS = [];
+let CATS = [];            // [{id, name, cover:{listing, image}}]
+let ASSIGN = {};          // listing id -> [category ids]
+let selected = new Set();
+let onlyFlagged = false;
+let view = { type: 'home', key: '' };
+
+/* ---------- images ---------- */
 // Load the image from Supabase; if that ever fails, fall back to the original Etsy-hosted one.
 function imgTag(img, cls) {
   const e = document.createElement('img');
@@ -84,7 +150,122 @@ function imgTag(img, cls) {
   return e;
 }
 
-// Simple automatic checks to point you at things worth a second look.
+/* ---------- category data ---------- */
+function pruned() {
+  const a = {};
+  Object.keys(ASSIGN).forEach(k => { if (ASSIGN[k] && ASSIGN[k].length) a[k] = ASSIGN[k]; });
+  return { categories: CATS, assignments: a };
+}
+
+function loadCats() {
+  const base = window.CATEGORIES_DATA || { categories: [], assignments: {} };
+  let src = base;
+  if (EDIT) {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        // If the saved draft is identical to the published file, the draft is no longer needed.
+        if (raw === JSON.stringify(normalize(base))) localStorage.removeItem(DRAFT_KEY);
+        else src = JSON.parse(raw);
+      }
+    } catch (e) {}
+  }
+  CATS = JSON.parse(JSON.stringify(src.categories || []));
+  ASSIGN = JSON.parse(JSON.stringify(src.assignments || {}));
+}
+function normalize(src) {
+  const a = {};
+  Object.keys(src.assignments || {}).forEach(k => { if (src.assignments[k].length) a[k] = src.assignments[k]; });
+  return { categories: src.categories || [], assignments: a };
+}
+
+function hasDraft() { try { return !!localStorage.getItem(DRAFT_KEY); } catch (e) { return false; } }
+function saveDraft() {
+  if (!EDIT) return;
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(pruned())); } catch (e) {}
+  updateEditBar();
+}
+
+const catsOf = l => ASSIGN[l.id] || [];
+const listingsIn = id => LISTINGS.filter(l => catsOf(l).includes(id));
+const catById = id => CATS.find(c => c.id === id);
+
+function coverFor(cat) {
+  if (cat.cover) {
+    const l = LISTINGS.find(x => x.id === cat.cover.listing);
+    if (l && l.images[cat.cover.image]) return l.images[cat.cover.image];
+  }
+  const first = listingsIn(cat.id)[0];
+  return first ? first.images[0] : null;
+}
+
+function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'category'; }
+function uniqueId(name) {
+  const base = slugify(name); let id = base, n = 2;
+  while (CATS.some(c => c.id === id) || id === 'all' || id === 'uncategorized') id = base + '-' + n++;
+  return id;
+}
+
+function say(msg) { $('editstatus').textContent = msg; }
+
+/* ---------- edit actions ---------- */
+function createCategory(name) {
+  name = name.trim();
+  if (!name) return;
+  if (CATS.some(c => c.name.toLowerCase() === name.toLowerCase())) { say(`"${name}" already exists.`); return; }
+  CATS.push({ id: uniqueId(name), name });
+  saveDraft(); renderHome(); say(`Created "${name}". Open "All listings" to start assigning pieces.`);
+}
+function renameCategory(cat) {
+  const n = prompt('New name for this category:', cat.name);
+  if (n && n.trim()) { cat.name = n.trim(); saveDraft(); renderHome(); }
+}
+function deleteCategory(cat) {
+  if (!confirm(`Delete the category "${cat.name}"? The pieces themselves are not deleted.`)) return;
+  CATS = CATS.filter(c => c !== cat);
+  Object.keys(ASSIGN).forEach(k => { ASSIGN[k] = ASSIGN[k].filter(id => id !== cat.id); });
+  saveDraft(); renderHome();
+}
+function pickCover(cat) {
+  const items = listingsIn(cat.id);
+  $('dtitle').textContent = `Choose the cover image for "${cat.name}"`;
+  const body = $('dbody'); body.innerHTML = '';
+  if (!items.length) { body.textContent = 'Assign some pieces to this category first, then choose a cover.'; $('dlg').showModal(); return; }
+  const wrap = document.createElement('div'); wrap.className = 'coverpick';
+  items.forEach(l => l.images.forEach((img, i) => {
+    const t = imgTag(img);
+    t.title = l.title;
+    t.onclick = () => { cat.cover = { listing: l.id, image: i }; saveDraft(); $('dlg').close(); };
+    wrap.appendChild(t);
+  }));
+  body.appendChild(wrap);
+  $('dlg').showModal();
+}
+function assign(ids, catId) {
+  ids.forEach(id => { const a = ASSIGN[id] || (ASSIGN[id] = []); if (!a.includes(catId)) a.push(catId); });
+  saveDraft();
+}
+function unassign(ids, catId) {
+  ids.forEach(id => { if (ASSIGN[id]) ASSIGN[id] = ASSIGN[id].filter(c => c !== catId); });
+  saveDraft();
+}
+function downloadFile() {
+  const txt = 'window.CATEGORIES_DATA = ' + JSON.stringify(pruned(), null, 1) + ';\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/javascript' }));
+  a.download = 'categories.js';
+  document.body.appendChild(a); a.click(); a.remove();
+  say('Downloaded categories.js. Upload it to GitHub (see the steps I gave you), then click "Discard draft".');
+}
+function updateEditBar() {
+  if (!EDIT) return;
+  $('editbar').hidden = false;
+  const assigned = LISTINGS.filter(l => catsOf(l).length).length;
+  if (!$('editstatus').textContent) say(`${CATS.length} categories · ${assigned} of ${LISTINGS.length} pieces assigned. Changes are kept in this browser until you download and upload the file.`);
+  $('discard').hidden = !hasDraft();
+}
+
+/* ---------- problem checks ---------- */
 function problems(l) {
   const p = [];
   if (!l.title) p.push('Missing title');
@@ -97,41 +278,106 @@ function problems(l) {
   if (/[Ââ�]/.test(l.title + l.description)) p.push('Odd characters (encoding?)');
   return p;
 }
-
 function money(l) { return l.price == null ? '—' : new Intl.NumberFormat('en-US',{style:'currency',currency:l.currency||'USD',maximumFractionDigits:0}).format(l.price); }
 
+/* ---------- home page ---------- */
+function makeTile({ name, count, img, href, cat }) {
+  const t = document.createElement('div');
+  t.className = 'tile'; t.tabIndex = 0;
+  const im = document.createElement('div'); im.className = 'tileimg';
+  if (img) im.appendChild(imgTag(img)); else im.textContent = name.charAt(0).toUpperCase();
+  const lab = document.createElement('div'); lab.className = 'tilelabel';
+  const s = document.createElement('strong'); s.textContent = name;
+  const c = document.createElement('span'); c.textContent = count + (count === 1 ? ' piece' : ' pieces');
+  lab.append(s, c);
+  t.append(im, lab);
+  if (EDIT && cat) {
+    const acts = document.createElement('div'); acts.className = 'tileactions';
+    [['Rename', () => renameCategory(cat)], ['Choose cover', () => pickCover(cat)], ['Delete', () => deleteCategory(cat)]].forEach(([label, fn]) => {
+      const b = document.createElement('button'); b.className = 'small'; b.textContent = label;
+      b.onclick = e => { e.stopPropagation(); fn(); };
+      acts.appendChild(b);
+    });
+    t.appendChild(acts);
+  }
+  t.onclick = () => { location.hash = href; };
+  t.onkeydown = e => { if (e.key === 'Enter') location.hash = href; };
+  return t;
+}
+
+function renderHome() {
+  const home = $('home'); home.innerHTML = '';
+  if (EDIT) {
+    const f = document.createElement('form'); f.className = 'newcat';
+    f.innerHTML = '<input type="text" id="newname" placeholder="New category name, for example Jazz"><button class="primary" type="submit">Create category</button>';
+    f.onsubmit = e => { e.preventDefault(); const i = f.querySelector('input'); createCategory(i.value); };
+    home.appendChild(f);
+  }
+  const grid = document.createElement('div'); grid.className = 'tiles';
+  CATS.forEach(c => grid.appendChild(makeTile({ name: c.name, count: listingsIn(c.id).length, img: coverFor(c), href: '#/c/' + encodeURIComponent(c.id), cat: c })));
+  grid.appendChild(makeTile({ name: 'All listings', count: LISTINGS.length, img: LISTINGS[0] && LISTINGS[0].images[0], href: '#/all' }));
+  const un = LISTINGS.filter(l => !catsOf(l).length);
+  if (CATS.length && un.length) grid.appendChild(makeTile({ name: 'Uncategorized', count: un.length, img: un[0].images[0], href: '#/uncategorized' }));
+  home.appendChild(grid);
+  if (!CATS.length && !EDIT) {
+    const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'No categories have been set up yet.'; home.appendChild(p);
+  }
+  updateEditBar();
+}
+
+/* ---------- list view ---------- */
+function scope() {
+  if (view.key === 'all') return LISTINGS;
+  if (view.key === 'uncategorized') return LISTINGS.filter(l => !catsOf(l).length);
+  return listingsIn(view.key);
+}
+
 function visible() {
-  const q = document.getElementById('q').value.trim().toLowerCase();
-  const pr = document.getElementById('price').value;
-  let list = LISTINGS.filter(l => {
+  const q = $('q').value.trim().toLowerCase();
+  const pr = $('price').value;
+  let list = scope().filter(l => {
     if (pr && String(l.price) !== pr) return false;
     if (onlyFlagged && !problems(l).length) return false;
     if (!q) return true;
     return (l.title + ' ' + l.description + ' ' + l.tags.join(' ') + ' ' + l.materials.join(' ')).toLowerCase().includes(q);
   });
-  const s = document.getElementById('sort').value;
+  list = list.slice();
+  const s = $('sort').value;
   if (s === 'title') list.sort((a,b) => a.title.localeCompare(b.title));
   if (s === 'priceLow') list.sort((a,b) => a.price - b.price);
   if (s === 'priceHigh') list.sort((a,b) => b.price - a.price);
   return list;
 }
 
+function updateSelCount() { $('selcount').textContent = selected.size + ' selected'; }
+
 function render() {
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
+  const grid = $('grid'); grid.innerHTML = '';
   const list = visible();
-  document.getElementById('count').textContent = `${list.length} of ${LISTINGS.length} listings`;
+  $('count').textContent = `${list.length} of ${scope().length} listings`;
   for (const l of list) {
     const c = document.createElement('div');
-    c.className = 'card';
+    c.className = 'card' + (selected.has(l.id) ? ' selected' : '');
     c.tabIndex = 0;
     if (l.images[0]) c.appendChild(imgTag(l.images[0], 'thumb'));
-    const b = document.createElement('div');
-    b.className = 'body';
+    if (EDIT) {
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'cardcheck';
+      cb.checked = selected.has(l.id); cb.title = 'Select this piece';
+      cb.onclick = e => e.stopPropagation();
+      cb.onchange = () => { cb.checked ? selected.add(l.id) : selected.delete(l.id); c.classList.toggle('selected', cb.checked); updateSelCount(); };
+      c.appendChild(cb);
+    }
+    const b = document.createElement('div'); b.className = 'body';
     const h = document.createElement('h3'); h.textContent = l.title;
     const m = document.createElement('div'); m.className = 'meta';
     m.innerHTML = `<span>${money(l)}</span><span>${l.images.length} img · qty ${l.quantity ?? '—'}</span>`;
     b.append(h, m);
+    if (EDIT) {
+      const cc = document.createElement('div'); cc.className = 'cardcats';
+      const names = catsOf(l).map(id => (catById(id) || {}).name).filter(Boolean);
+      cc.textContent = names.length ? names.join(', ') : 'Uncategorized';
+      b.appendChild(cc);
+    }
     const pp = problems(l);
     if (pp.length) { const f = document.createElement('span'); f.className = 'flag'; f.textContent = pp.length + (pp.length === 1 ? ' possible problem' : ' possible problems'); b.appendChild(f); }
     c.appendChild(b);
@@ -139,8 +385,17 @@ function render() {
     c.onkeydown = e => { if (e.key === 'Enter') openDetail(l); };
     grid.appendChild(c);
   }
+  updateSelCount();
 }
 
+function fillBulkSelect() {
+  const sel = $('bulkcat'); sel.innerHTML = '';
+  if (!CATS.length) { const o = document.createElement('option'); o.textContent = 'Create a category on the home page first'; o.value = ''; sel.appendChild(o); return; }
+  CATS.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+  if (catById(view.key)) sel.value = view.key;
+}
+
+/* ---------- detail dialog ---------- */
 function row(label, node) {
   const d = document.createElement('div'); d.className = 'row';
   const b = document.createElement('b'); b.textContent = label;
@@ -150,9 +405,8 @@ function row(label, node) {
 }
 
 function openDetail(l) {
-  document.getElementById('dtitle').textContent = `#${l.id}  ${l.title}`;
-  const body = document.getElementById('dbody');
-  body.innerHTML = '';
+  $('dtitle').textContent = `#${l.id}  ${l.title}`;
+  const body = $('dbody'); body.innerHTML = '';
   const gal = document.createElement('div'); gal.className = 'gallery';
   l.images.forEach(i => gal.appendChild(imgTag(i)));
   const info = document.createElement('div');
@@ -160,6 +414,25 @@ function openDetail(l) {
   info.appendChild(row('Price', `${money(l)}   (qty ${l.quantity ?? '—'})`));
   const d = document.createElement('div'); d.className = 'desc'; d.textContent = l.description;
   info.appendChild(row('Description', d));
+
+  // Categories: checkboxes in edit mode, plain links otherwise
+  const cw = document.createElement('div');
+  if (EDIT) {
+    if (!CATS.length) cw.textContent = 'No categories yet.';
+    CATS.forEach(c => {
+      const lab = document.createElement('label'); lab.className = 'catcheck';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = catsOf(l).includes(c.id);
+      cb.onchange = () => cb.checked ? assign([l.id], c.id) : unassign([l.id], c.id);
+      lab.append(cb, document.createTextNode(' ' + c.name));
+      cw.appendChild(lab);
+    });
+  } else {
+    const names = catsOf(l).map(catById).filter(Boolean);
+    if (!names.length) cw.textContent = '—';
+    names.forEach(c => { const a = document.createElement('a'); a.href = '#/c/' + encodeURIComponent(c.id); a.textContent = c.name; a.className = 'tag'; a.onclick = () => $('dlg').close(); cw.appendChild(a); });
+  }
+  info.appendChild(row('Categories', cw));
+
   const tags = document.createElement('div'); l.tags.forEach(t => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; tags.appendChild(s); });
   info.appendChild(row(`Tags (${l.tags.length})`, tags));
   info.appendChild(row('Materials', l.materials.join(', ') || '—'));
@@ -175,31 +448,73 @@ function openDetail(l) {
   links.innerHTML = '<a href="https://www.etsy.com/shop/hnPrints" target="_blank" rel="noopener">Open the shop on Etsy</a>';
   info.appendChild(row('Compare with', links));
   body.append(gal, info);
-  document.getElementById('dlg').showModal();
+  $('dlg').showModal();
 }
 
-document.getElementById('close').onclick = () => document.getElementById('dlg').close();
-document.getElementById('dlg').addEventListener('click', e => { if (e.target.id === 'dlg') e.target.close(); });
-['q','sort','price'].forEach(id => document.getElementById(id).addEventListener('input', render));
-document.getElementById('flagged').onclick = e => { onlyFlagged = !onlyFlagged; e.target.classList.toggle('on', onlyFlagged); render(); };
+/* ---------- routing ---------- */
+function route() {
+  const h = location.hash.replace(/^#\/?/, '');
+  selected.clear();
+  $('q').value = ''; $('sort').value = 'id'; $('price').value = ''; onlyFlagged = false; $('flagged').classList.remove('on');
+  if (h === 'all' || h === 'uncategorized' || (h.startsWith('c/') && catById(decodeURIComponent(h.slice(2))))) {
+    const key = h.startsWith('c/') ? decodeURIComponent(h.slice(2)) : h;
+    view = { type: 'list', key };
+    $('home').hidden = true; $('listview').hidden = false;
+    $('viewtitle').textContent = key === 'all' ? 'All listings' : key === 'uncategorized' ? 'Uncategorized' : catById(key).name;
+    $('bulkbar').hidden = !EDIT;
+    $('bulkremove').hidden = !catById(key);
+    fillBulkSelect();
+    render();
+  } else {
+    view = { type: 'home', key: '' };
+    $('listview').hidden = true; $('home').hidden = false;
+    renderHome();
+  }
+  window.scrollTo(0, 0);
+}
+function refreshView() { view.type === 'list' ? (fillBulkSelect(), render()) : renderHome(); }
+
+/* ---------- wiring ---------- */
+$('close').onclick = () => $('dlg').close();
+$('dlg').addEventListener('click', e => { if (e.target.id === 'dlg') e.target.close(); });
+$('dlg').addEventListener('close', refreshView);
+['q','sort','price'].forEach(id => $(id).addEventListener('input', render));
+$('flagged').onclick = e => { onlyFlagged = !onlyFlagged; e.target.classList.toggle('on', onlyFlagged); render(); };
+$('selall').onclick = () => { visible().forEach(l => selected.add(l.id)); render(); };
+$('selnone').onclick = () => { selected.clear(); render(); };
+$('bulkadd').onclick = () => {
+  const id = $('bulkcat').value;
+  if (!id) { say('Create a category on the home page first.'); return; }
+  if (!selected.size) { say('Tick some pieces first.'); return; }
+  const n = selected.size; assign([...selected], id); selected.clear(); render();
+  say(`Added ${n} piece${n === 1 ? '' : 's'} to "${catById(id).name}".`);
+};
+$('bulkremove').onclick = () => {
+  if (!selected.size) { say('Tick some pieces first.'); return; }
+  const n = selected.size; unassign([...selected], view.key); selected.clear(); render();
+  say(`Removed ${n} piece${n === 1 ? '' : 's'} from "${catById(view.key).name}".`);
+};
+$('download').onclick = downloadFile;
+$('discard').onclick = () => {
+  if (!confirm('Throw away the changes saved in this browser and go back to the published categories?')) return;
+  try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+  loadCats(); say(''); route();
+};
+window.addEventListener('hashchange', route);
 
 function start(data) {
   LISTINGS = data;
   const prices = [...new Set(data.map(l => l.price))].sort((a,b) => a - b);
-  const sel = document.getElementById('price');
-  prices.forEach(p => { const o = document.createElement('option'); o.value = String(p); o.textContent = '$' + p; sel.appendChild(o); });
-  render();
+  prices.forEach(p => { const o = document.createElement('option'); o.value = String(p); o.textContent = '$' + p; $('price').appendChild(o); });
+  loadCats();
+  updateEditBar();
+  route();
 }
 
 if (window.LISTINGS_DATA) {
   start(window.LISTINGS_DATA);
 } else {
-  fetch('data/listings.json')
-    .then(r => r.json())
-    .then(start)
-    .catch(() => {
-      document.getElementById('grid').innerHTML = '<p>Could not load the listing data. Make sure listings.js is uploaded next to index.html.</p>';
-    });
+  document.body.insertAdjacentHTML('beforeend', '<p class="empty">Could not load the listing data. Make sure listings.js is uploaded next to index.html.</p>');
 }
 </script>
 </body>
