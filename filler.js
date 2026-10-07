@@ -535,6 +535,7 @@
       'details{margin-top:8px}summary{cursor:pointer;color:#555;font-size:12px}' +
       '</style><div class="box"><div class="top"><h3>hnPrints &rarr; form</h3><button id="min">Hide</button></div>' +
       '<input type="text" id="q" placeholder="Type a piece name or number, press Enter" autocomplete="off">' +
+      '<label style="margin:6px 0 2px"><input type="checkbox" id="evo"> Show Evanston Made pieces only (untick to see all)</label><div class="hint" id="cnt"></div>' +
       '<div class="res" id="res"></div><div class="sum" id="sum">No piece selected.</div><div class="warn" id="warn"></div>' +
       '<div class="row"><button class="p" id="fill">Fill form</button><button id="mark">Mark as added</button><button id="more" style="display:none">Attach remaining images</button></div>' +
       '<div class="rep" id="rep"></div><div class="hint">Nothing is saved or submitted for you. Check the form, then click your own Save button.</div>' +
@@ -545,8 +546,7 @@
       '<label>Product type</label><input type="text" id="ptype">' +
       '<label>Quantity: a number, or "skip" to leave it alone, or "etsy" to copy the Etsy stock count</label><input type="text" id="qty">' +
       '<label>Shipping method (word to look for)</label><input type="text" id="ship">' +
-      '<label><input type="checkbox" id="evo"> Evanston Made pieces only</label>' +
-      '<div class="row"><button id="cap">Save form structure file</button></div>' +
+            '<div class="row"><button id="cap">Save form structure file</button></div>' +
       '<div class="hint">The structure file lists the form\'s boxes and the layout around Collections, Product type, Tags and Shipping. It has no passwords or personal details.</div></details></div>';
     document.body.appendChild(host);
     var $ = function (s) { return root.querySelector(s); };
@@ -566,7 +566,7 @@
       var q = $('#q').value.trim().toLowerCase();
       var list = L.filter(function (l) { return (!$('#evo').checked || l.evanstonMade) && (!q || String(l.id) === q || l.title.toLowerCase().indexOf(q) >= 0); });
       list.sort(function (a, b) { return (String(b.id) === q) - (String(a.id) === q); }); // an exact piece number comes first
-      return list.slice(0, 8);
+      return list;
     }
     function renderRes() {
       results = matches(); if (idx >= results.length) idx = 0;
@@ -576,8 +576,9 @@
         d.innerHTML = (done.has(l.id) ? '<span class="d">&#10003;</span> ' : '') + '#' + l.id + ' ';
         d.appendChild(document.createTextNode(l.title.split('|')[0].trim()));
         d.onclick = function () { idx = i; choose(l); renderRes(); };
-        r.appendChild(d);
+        r.appendChild(d); if (i === idx) setTimeout(function () { d.scrollIntoView({ block: 'nearest' }); }, 0);
       });
+      $('#cnt').textContent = results.length + ' pieces in the list (scroll, or type to narrow)';
       if (!results.length) r.innerHTML = '<div>No match</div>';
     }
     function choose(l) {
