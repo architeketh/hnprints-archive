@@ -15,7 +15,10 @@
     get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
-  var DEFAULT_COLLECTIONS = ['$25-50', 'Art Prints', 'Art for your Walls', 'Printmaking'];
+  var DEFAULT_COLLECTIONS = ['Art Prints', 'Art for your walls', 'Printmaking'];
+  // "highest price | collection name": the first line whose price is at or above the piece's price is used.
+  var DEFAULT_BRACKETS = '25|$1 - 25\n50|$25-50\n100|$50-100\n200|$100-200\n500|$200 - $500\n999999|$500 and above';
+  var DEFAULT_TYPE = 'Printmaking';
 
   function loadScript(src) {
     return new Promise(function (res, rej) {
@@ -189,6 +192,181 @@
     return null;
   }
 
+  /* ---------- dropdown-aware selection (collections, product type) ---------- */
+  function canon(s) { return norm(s).replace(/\b(your|the)\b/g, '').replace(/\s+/g, ' ').trim(); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function inMain(e) { return !e.closest('nav,aside,header,#hn-filler-host,[class*="sidebar"],[class*="side-bar"],[id*="sidebar"],[class*="navbar"],[role="navigation"]'); }
+  function vis(e) { return !!(e.offsetParent || (e.getClientRects && e.getClientRects().length)); }
+  function ownText(e) { var t = ''; e.childNodes.forEach(function (n) { if (n.nodeType === 3) t += n.textContent; }); return norm(t); }
+  function press(el) {
+    ['mousedown', 'mouseup', 'click'].forEach(function (t) { el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })); });
+  }
+  var CONTROL_SEL = 'select,input:not([type=hidden]),button,[role=combobox],[role=listbox],.select2,[class*="dropdown"],[class*="select"]';
+
+  // Find the form section whose heading is e.g. "Collections" (skips the left menu, which also has a "Collections" link).
+  function findSection(word) {
+    var w = norm(word);
+    var cands = Array.prototype.slice.call(document.querySelectorAll('label,legend,h1,h2,h3,h4,h5,h6,p,span,div,b,strong,td,th')).filter(function (e) {
+      if (!inMain(e)) return false;
+      var t = ownText(e); return t === w || (t.indexOf(w) === 0 && t.length <= w.length + 3);
+    });
+    var GROUP = '.form-group,.mb-3,.field,.form-field,fieldset,[class*="col-"]';
+    for (var i = 0; i < cands.length; i++) {
+      var cand = cands[i];
+      // 1. The label's own field group, if it holds something besides the label (a control or a custom widget).
+      var g = cand.closest(GROUP);
+      if (g && inMain(g) && g !== document.body) {
+        var hasWidget = Array.prototype.slice.call(g.children).some(function (ch) { return !ch.contains(cand) && !/^(LABEL|LEGEND|SMALL|P|H[1-6])$/.test(ch.tagName); });
+        if (g.querySelector(CONTROL_SEL) || hasWidget) return g;
+      }
+      // 2. Otherwise climb until a container with a control appears.
+      var c = cand;
+      for (var up = 0; up < 4 && c && c !== document.body; up++) {
+        if (c.querySelector(CONTROL_SEL)) return c;
+        c = c.parentElement;
+      }
+    }
+    return null;
+  }
+
+  function isSelected(container, w) {
+    var i, sels = container.querySelectorAll('select');
+    for (i = 0; i < sels.length; i++) {
+      var so = Array.prototype.slice.call(sels[i].selectedOptions || []);
+      if (so.some(function (o) { return canon(o.text) === w; })) return true;
+    }
+    var boxes = container.querySelectorAll('input[type=checkbox]:checked,input[type=radio]:checked');
+    for (i = 0; i < boxes.length; i++) if (canon(ownLabel(boxes[i])) === w) return true;
+    var chips = container.querySelectorAll('[class*="choice"],[class*="chip"],[class*="tag"],[class*="selected"],[class*="badge"],[class*="rendered"],[class*="value"]');
+    for (i = 0; i < chips.length; i++) {
+      var ct = canon(chips[i].textContent);
+      if (vis(chips[i]) && ct.indexOf(w) >= 0 && ct.length < w.length + 40) return true;
+    }
+    var ins = container.querySelectorAll('input[type=text],input:not([type])');
+    for (i = 0; i < ins.length; i++) if (canon(ins[i].value).indexOf(w) >= 0) return true;
+    var ticked = container.querySelectorAll('.jstree-clicked,.jstree-checked,[role=treeitem][aria-selected=true]');
+    for (i = 0; i < ticked.length; i++) if (canon(ticked[i].textContent) === w) return true;
+    // A plain text display of the chosen value: look at the section's text with any option lists removed.
+    var clone = container.cloneNode(true);
+    clone.querySelectorAll('ul,ol,[role=listbox],[role=option],option,select,script,style').forEach(function (n) { n.remove(); });
+    var txt = canon(clone.textContent);
+    return txt.length < 200 && txt.indexOf(w) >= 0;
+  }
+
+  function findOption(w) {
+    var els = Array.prototype.slice.call(document.querySelectorAll('[role=option],li,.dropdown-item,[class*="option"],label')).filter(function (e) {
+      if (!vis(e) || !inMain(e) || e.children.length > 3) return false;
+      if (/choice|chip|tag|badge|rendered/i.test(String(e.className))) return false;
+      return canon(e.textContent) === w;
+    });
+    return els.length ? els[els.length - 1] : null;
+  }
+
+  async function clickCustom(container, w) {
+    var trig = Array.prototype.slice.call(container.querySelectorAll('.select2-selection,[role=combobox],button.dropdown-toggle,[class*="multiselect"],[class*="dropdown"],[class*="select"],input[type=text],button')).filter(vis)[0];
+    if (!trig) trig = Array.prototype.slice.call(container.children).find(function (c) { return !/^(LABEL|LEGEND|H[1-6]|SMALL|P)$/.test(c.tagName) && vis(c); });
+    var opt = findOption(w);
+    for (var attempt = 0; attempt < 2 && !opt; attempt++) {
+      if (!trig) return false;
+      press(trig); if (trig.focus) trig.focus();
+      await sleep(400); opt = findOption(w);
+    }
+    if (!opt) return false;
+    press(opt); await sleep(200);
+    return true;
+  }
+
+  /* ----- tree-style checkbox lists (jsTree), like the Collections list on the seller form ----- */
+  function treeAnchors(container) { return Array.prototype.slice.call(container.querySelectorAll('.jstree-anchor,[role=treeitem]>a')); }
+  function anchorOn(a) {
+    var li = a.closest('li');
+    return a.classList.contains('jstree-clicked') || a.classList.contains('jstree-checked') || !!(li && li.getAttribute('aria-selected') === 'true');
+  }
+  function toggleAnchor(a, wantOn) {
+    press(a.querySelector('.jstree-checkbox') || a);
+    if (anchorOn(a) !== wantOn) a.click();
+    if (anchorOn(a) !== wantOn && window.jQuery && jQuery.jstree && jQuery.jstree.reference) {
+      try {
+        var inst = jQuery.jstree.reference(a), li = a.closest('li');
+        if (inst && li) { if (wantOn) inst.select_node(li.id); else inst.deselect_node(li.id); }
+      } catch (e) {}
+    }
+  }
+  async function findAnchor(container, w) {
+    var find = function () { return treeAnchors(container).find(function (a) { return canon(a.textContent) === w; }); };
+    var a = find(); if (a || !treeAnchors(container).length) return a || null;
+    // Not visible in the list: type the name into the list's search box and look again.
+    var box = Array.prototype.slice.call(container.querySelectorAll('input[type=text],input[type=search]')).find(function (x) { return /search/i.test((x.placeholder || '') + x.name + x.id) && vis(x); });
+    if (!box) return null;
+    container.__hnBox = box;
+    setValue(box, w);
+    ['keydown', 'keyup'].forEach(function (ev) { box.dispatchEvent(new KeyboardEvent(ev, { key: 'a', bubbles: true })); });
+    await sleep(700);
+    return find() || null;
+  }
+  // Untick every ticked entry in the list that we are not about to tick.
+  function clearOthers(container, keep) {
+    var all = treeAnchors(container); if (!all.length) return 0;
+    var root = all[0].closest('.jstree,[role=tree]') || container, n = 0;
+    all.filter(function (a) { return root.contains(a); }).forEach(function (a) {
+      if (anchorOn(a) && keep.indexOf(canon(a.textContent)) < 0) { toggleAnchor(a, false); n++; }
+    });
+    return n;
+  }
+
+  // Select each name inside one section. Works with a tree list, real <select>, checkboxes/radios, or a custom dropdown.
+  async function selectInWidget(container, names) {
+    var res = { confirmed: [], unconfirmed: [], missing: [] };
+    var sels = Array.prototype.slice.call(container.querySelectorAll('select'));
+    var boxes = Array.prototype.slice.call(container.querySelectorAll('input[type=checkbox],input[type=radio]'));
+    var clicked = [];
+    for (var n = 0; n < names.length; n++) {
+      var name = names[n], w = canon(name), done = false;
+      var an = await findAnchor(container, w);
+      if (an) { if (!anchorOn(an)) toggleAnchor(an, true); done = true; }
+      for (var i = 0; i < sels.length && !done; i++) {
+        var o = Array.prototype.slice.call(sels[i].options).find(function (x) { return canon(x.text) === w; });
+        if (o) {
+          if (sels[i].multiple) o.selected = true; else sels[i].value = o.value;
+          fire(sels[i]); if (window.jQuery) { try { jQuery(sels[i]).trigger('change'); } catch (e) {} }
+          done = true;
+        }
+      }
+      if (!done) {
+        var b = boxes.find(function (x) { return canon(ownLabel(x)) === w; });
+        if (b) { if (!b.checked) { b.click(); if (!b.checked) { b.checked = true; fire(b); } } done = true; }
+      }
+      if (!done) done = await clickCustom(container, w);
+      if (done) clicked.push(name); else res.missing.push(name);
+    }
+    try { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true })); } catch (e) {}
+    if (container.__hnBox) { // clear the list's search box again so the whole list shows
+      setValue(container.__hnBox, ''); container.__hnBox.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }));
+      delete container.__hnBox;
+    }
+    await sleep(200);
+    clicked.forEach(function (nm) { (isSelected(container, canon(nm)) ? res.confirmed : res.unconfirmed).push(nm); });
+    return res;
+  }
+
+  function describe(r, what) {
+    var p = [];
+    if (r.confirmed.length) p.push('selected: ' + r.confirmed.join(', '));
+    if (r.unconfirmed.length) p.push('clicked but could not confirm: ' + r.unconfirmed.join(', ') + ' (this field may allow only one choice, so check it)');
+    if (r.missing.length) p.push('NOT in the ' + what + ' list: ' + r.missing.join(', '));
+    return p.join('. ') || 'nothing to select';
+  }
+
+  function bracketFor(price, settings) {
+    if (price == null) return null;
+    var lines = (settings.brackets || '').split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var p = lines[i].split('|');
+      if (p.length === 2 && price <= parseFloat(p[0])) return p[1].trim();
+    }
+    return null;
+  }
+
   var imgNext = 0; // for forms with one upload box per image
   async function attachImages(l, restart) {
     if (restart) imgNext = 0;
@@ -235,13 +413,36 @@
     var meta = fillMeta(l); if (meta) add('Meta', meta);
 
     var cats = (C().assignments[l.id] || []).map(function (id) { var c = C().categories.find(function (x) { return x.id === id; }); return c && c.name; }).filter(Boolean);
-    var wanted = settings.collections;
-    var r = tickCollections(wanted);
-    rows.push({ label: 'Collections', ok: !r.missing.length, note: (r.ticked.length ? 'ticked: ' + r.ticked.join(', ') + '. ' : '') + (r.already.length ? 'already ticked: ' + r.already.join(', ') + '. ' : '') + (r.missing.length ? 'NOT FOUND on the form: ' + r.missing.join(', ') : '') });
-    if (cats.length) {
-      var r2 = tickCollections(cats);
-      rows.push({ label: 'Your categories', ok: true, note: (r2.ticked.length ? 'ticked: ' + r2.ticked.join(', ') + '. ' : '') + (r2.missing.length ? 'no matching collection on the form: ' + r2.missing.join(', ') : '') || 'already ticked' });
+    // Product type (a single choice, for example Printmaking)
+    if (settings.productType) {
+      var tsec = findSection('product type'), tr = null;
+      if (tsec) tr = await selectInWidget(tsec, [settings.productType]);
+      else {
+        var tel = findControl([/product type/], /meta|seo/);
+        if (tel && setValue(tel, settings.productType)) tr = { confirmed: [settings.productType], unconfirmed: [], missing: [] };
+      }
+      if (tr) rows.push({ label: 'Product type', ok: !tr.missing.length && !tr.unconfirmed.length, note: describe(tr, 'product type') });
+      else rows.push({ label: 'Product type', ok: false, note: 'not found on this form' });
     }
+
+    // Collections: your fixed list, plus the price-range collection for this piece's price.
+    var csec = findSection('collections'), wanted = settings.collections.slice(), r, br = null, cleared = 0;
+    if (settings.autoPrice) { br = bracketFor(l.price, settings); if (br) wanted.push(br); }
+    if (csec) {
+      if (settings.clearOthers) cleared = clearOthers(csec, wanted.concat(cats).map(canon));
+      // Your own categories go first, so the required collections are applied last.
+      if (cats.length) {
+        var r2 = await selectInWidget(csec, cats);
+        if (r2.confirmed.length) rows.push({ label: 'Your categories', ok: true, note: 'selected: ' + r2.confirmed.join(', ') });
+      }
+      r = await selectInWidget(csec, wanted);
+    } else {
+      var old = tickCollections(wanted);
+      r = { confirmed: old.ticked.concat(old.already), unconfirmed: [], missing: old.missing };
+    }
+    var cnote = describe(r, 'collections') + (br ? '. Price range for $' + l.price + ': ' + br : '') + (cleared ? '. Unticked ' + cleared + ' other(s)' : '') +
+      ((r.confirmed.length > 6) ? '. The form allows at most 6 collections' : '');
+    rows.push({ label: 'Collections', ok: !r.missing.length && !r.unconfirmed.length, note: cnote });
     add('Shipping method', setShipping(settings.shipping));
     log(rows);
     var im = await attachImages(l, true);
@@ -265,6 +466,15 @@
       if (e.type === 'file') { c.accept = e.accept; c.multiple = e.multiple; }
       if (e.tagName === 'BUTTON' || e.type === 'submit') c.text = (e.textContent || e.value || '').trim().slice(0, 40);
       out.controls.push(c);
+    });
+    // Markup around the trickier fields (no typed values), so dropdown widgets can be matched exactly.
+    out.sections = {};
+    ['collections', 'product type', 'product tags', 'tags', 'shipping method'].forEach(function (word) {
+      var sec = findSection(word);
+      if (!sec) { out.sections[word] = null; return; }
+      var html = sec.outerHTML.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/\svalue="[^"]*"/gi, '').replace(/\s(data-[a-z-]*token[a-z-]*)="[^"]*"/gi, '').replace(/\s+/g, ' ');
+      out.sections[word] = html.slice(0, 9000);
     });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' }));
@@ -299,25 +509,33 @@
       '<div class="res" id="res"></div><div class="sum" id="sum">No piece selected.</div><div class="warn" id="warn"></div>' +
       '<div class="row"><button class="p" id="fill">Fill form</button><button id="mark">Mark as added</button><button id="more" style="display:none">Attach remaining images</button></div>' +
       '<div class="rep" id="rep"></div><div class="hint">Nothing is saved or submitted for you. Check the form, then click your own Save button.</div>' +
-      '<details><summary>Settings</summary><label>Collections to tick (one per line)</label><textarea id="cols"></textarea>' +
+      '<details><summary>Settings</summary><label>Collections to tick for every piece (one per line)</label><textarea id="cols"></textarea>' +
+      '<label><input type="checkbox" id="autop"> Also tick the price-range collection that fits the price</label>' +
+      '<label>Price ranges (highest price | collection name)</label><textarea id="brk"></textarea>' +
+      '<label><input type="checkbox" id="clr"> Untick other collections first</label>' +
+      '<label>Product type</label><input type="text" id="ptype">' +
       '<label>Shipping method (word to look for)</label><input type="text" id="ship">' +
       '<label><input type="checkbox" id="evo"> Evanston Made pieces only</label>' +
       '<div class="row"><button id="cap">Save form structure file</button></div>' +
-      '<div class="hint">The structure file lists the names of the form\'s boxes only. It does not include anything you typed.</div></details></div>';
+      '<div class="hint">The structure file lists the form\'s boxes and the layout around Collections, Product type, Tags and Shipping. It has no passwords or personal details.</div></details></div>';
     document.body.appendChild(host);
     var $ = function (s) { return root.querySelector(s); };
 
-    var settings = LS.get('hnprints-settings', { collections: DEFAULT_COLLECTIONS, shipping: 'USPS', evo: true });
-    $('#cols').value = settings.collections.join('\n'); $('#ship').value = settings.shipping; $('#evo').checked = settings.evo;
+    var settings = LS.get('hnprints-settings-v3', { collections: DEFAULT_COLLECTIONS, autoPrice: true, brackets: DEFAULT_BRACKETS, clearOthers: true, productType: DEFAULT_TYPE, shipping: 'USPS', evo: true });
+    $('#cols').value = settings.collections.join('\n'); $('#autop').checked = settings.autoPrice; $('#brk').value = settings.brackets; $('#clr').checked = settings.clearOthers;
+    $('#ptype').value = settings.productType || ''; $('#ship').value = settings.shipping; $('#evo').checked = settings.evo;
     function readSettings() {
-      settings = { collections: $('#cols').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean), shipping: $('#ship').value.trim(), evo: $('#evo').checked };
-      LS.set('hnprints-settings', settings); return settings;
+      settings = { collections: $('#cols').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean), autoPrice: $('#autop').checked, brackets: $('#brk').value, clearOthers: $('#clr').checked,
+        productType: $('#ptype').value.trim(), shipping: $('#ship').value.trim(), evo: $('#evo').checked };
+      LS.set('hnprints-settings-v3', settings); return settings;
     }
 
     var results = [], idx = 0, current = null;
     function matches() {
       var q = $('#q').value.trim().toLowerCase();
-      return L.filter(function (l) { return (!$('#evo').checked || l.evanstonMade) && (!q || String(l.id) === q || l.title.toLowerCase().indexOf(q) >= 0); }).slice(0, 8);
+      var list = L.filter(function (l) { return (!$('#evo').checked || l.evanstonMade) && (!q || String(l.id) === q || l.title.toLowerCase().indexOf(q) >= 0); });
+      list.sort(function (a, b) { return (String(b.id) === q) - (String(a.id) === q); }); // an exact piece number comes first
+      return list.slice(0, 8);
     }
     function renderRes() {
       results = matches(); if (idx >= results.length) idx = 0;
@@ -335,7 +553,9 @@
       current = l; $('#rep').innerHTML = ''; $('#more').style.display = 'none';
       $('#sum').textContent = '#' + l.id + '  ' + l.title.split('|')[0].trim() + '  ·  $' + l.price + '  ·  ' + l.images.length + ' images';
       var s = readSettings();
-      var low = s.collections.some(function (c) { return norm(c) === norm('$25-50'); });
+      var rng = s.autoPrice ? bracketFor(l.price, s) : null;
+      if (rng) $('#sum').textContent += '  ·  price range: ' + rng;
+      var low = s.collections.some(function (c) { return canon(c) === canon('$25-50'); });
       $('#warn').textContent = (low && l.price > 50) ? 'Heads up: this piece costs $' + l.price + ', but "$25-50" is in your collections list.' : '';
     }
     function showRows(rows) {

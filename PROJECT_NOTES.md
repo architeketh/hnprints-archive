@@ -1,6 +1,6 @@
 # hnPrints Archive: Project Notes
 
-Last updated: Saturday, October 3, 2026
+Last updated: Tuesday, October 6, 2026 (evening)
 
 ## Goal
 
@@ -63,6 +63,25 @@ The home page now shows one image tile per category, plus "All listings" and "Un
 Tip: use the same computer and browser while you work, because the unsaved draft lives in that browser. Download `categories.js` before you finish for the day.
 
 Suggested starting categories based on your tags and titles: Jazz (about 13 pieces), Chicago (about 32), Op Art / Optical Illusion, Landscapes, Abstract / Geometric / Minimal.
+
+## Seller site form filler (added October 6)
+
+Goal: pick a piece, press Enter, and the "Add product" form on the Shop Evanston Made seller site fills itself in.
+
+Files (all at the top level of the GitHub repository): `filler.js`, `fill-setup.html`. A backup copy-and-paste version is in `add-product-helper.html`.
+
+How it works: a bookmark button (made on the setup page) runs `filler.js` on the seller page in your own signed-in browser. A small panel appears. Type a piece name or number, press Enter, and it fills the title, description, price, quantity, tags, collections, USPS shipping, and attaches the images from Supabase. It never clicks Save for you. No password is shared with anyone.
+
+Defaults for every piece (changeable in the panel's Settings): product type Printmaking; collections Art Prints, Art for your walls, Printmaking; shipping USPS. The price-range collection is ticked automatically by price: up to $25 = "$1 - 25", up to $50 = "$25-50", up to $100 = "$50-100", up to $200 = "$100-200", up to $500 = "$200 - $500", above = "$500 and above". Edit the ranges in Settings, or turn automatic off and list "$25-50" yourself to use it for everything. Other ticked collections are unticked first (can be turned off). The form allows at most 6 collections per product. Your own categories (Jazz, Chicago, and so on) are also ticked if the form has collections with the same names.
+
+Setup: https://architeketh.github.io/hnprints-archive/fill-setup.html
+
+Status: the first version worked on the real form for title, description, price, quantity, tags and shipping. On Oct 6 it was updated for the real Collections field (a tree list of checkboxes with a search box) and the Product type field, based on a screenshot. Tested on mock copies only; not yet confirmed on the real Collections and Product type fields. Also unconfirmed: the Description editor looked empty in one screenshot, and the Tags box may be a pick-list of existing tags. If any field doesn't fill, use Settings > "Save form structure file" in the panel and send the file to Claude so the filler can be matched to the real form.
+
+Open items:
+- Pieces cost $50 to $270. The price-range collections ($25-50 and so on) are not on the seller site yet.
+- Original paintings (for example the Acrylic on Paper pieces) are not prints. Remove "Art Prints" and "Printmaking" from the panel's Settings before filling those.
+- The seller site may block outside scripts. If the bookmark does nothing, tell Claude.
 
 ## Next steps
 
