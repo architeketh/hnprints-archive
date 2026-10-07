@@ -104,7 +104,8 @@
     return byLabel || c[0];
   }
 
-  function fillDescription(l) {
+  function fillDescription(l0) {
+    var l = Object.assign({}, l0, { description: String(l0.description || '').replace(/\n*\**Free Shipping Within the United States\**\n*/gi, '\n\n').replace(/\n{3,}/g, '\n\n') });
     var html = htmlDesc(l);
     var ta = findControl([/description/], /meta|short|seo|alt|image/, 'textarea,input');
     if (window.tinymce && tinymce.editors && tinymce.editors.length) {
@@ -125,9 +126,29 @@
     var el = findControl([/\bprice\b/], /compare|cost|tax|meta|discount|special|shipping/);
     if (!el || l.price == null) return null; setValue(el, String(l.price)); return 'filled';
   }
-  function fillQuantity(l) {
+  function fillQuantity(l, qty) {
+    if (qty === 'skip') return 'left alone (setting)';
+    var q = /^\d+$/.test(String(qty || '').trim()) ? String(qty).trim() : (qty === 'etsy' && l.quantity != null ? String(l.quantity) : null);
+    if (q === null) return 'left alone (setting)';
     var el = findControl([/quantity/, /inventory/, /\bstock\b/, /\bqty\b/], /threshold|alert|low|min|max/);
-    if (!el || l.quantity == null) return null; setValue(el, String(l.quantity)); return 'filled';
+    if (!el) return null; setValue(el, q); return 'filled (' + q + ')';
+  }
+  // A single-entry auto-suggest box (type, then pick the suggestion)
+  async function fillSuggest(el, value) {
+    var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+    el.focus(); setValue(el, '');
+    setValue(el, value);
+    ['keydown', 'keyup', 'input'].forEach(function (ev) { el.dispatchEvent(new KeyboardEvent(ev, { key: value.slice(-1), bubbles: true })); });
+    await wait(900);
+    var want = norm(value), pick = null;
+    var cands = document.querySelectorAll('.ui-autocomplete li, .ui-menu-item, .tt-suggestion, .typeahead li, .dropdown-menu li, .autocomplete-suggestion, .awesomplete li, [role=option], ul.suggestions li, .select2-results__option');
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i];
+      if (c.offsetParent !== null && norm(c.textContent) === want) { pick = c; break; }
+    }
+    if (!pick) for (var j = 0; j < cands.length; j++) { if (cands[j].offsetParent !== null && norm(cands[j].textContent).indexOf(want) >= 0) { pick = cands[j]; break; } }
+    if (pick) { var tgt = pick.querySelector('a') || pick; ['mousedown', 'mouseup', 'click'].forEach(function (ev) { tgt.dispatchEvent(new MouseEvent(ev, { bubbles: true })); }); await wait(300); }
+    return norm(el.value || '').indexOf(want) >= 0 || !!pick;
   }
   function fillSku(l) {
     if (!l.sku) return 'skipped (no SKU in your data)';
@@ -407,7 +428,7 @@
     add('Title', fillTitle(l));
     add('Description', fillDescription(l));
     add('Price', fillPrice(l));
-    add('Quantity', fillQuantity(l));
+    add('Quantity', fillQuantity(l, settings.qty));
     var sku = fillSku(l); add('SKU', sku, sku === null ? false : true);
     add('Tags', fillTags(l));
     var meta = fillMeta(l); if (meta) add('Meta', meta);
@@ -416,12 +437,20 @@
     // Product type (a single choice, for example Printmaking)
     if (settings.productType) {
       var tsec = findSection('product type'), tr = null;
-      if (tsec) tr = await selectInWidget(tsec, [settings.productType]);
+      var tinp = findControl([/product type/], /meta|seo/, 'input[type=text],input:not([type])');
+      if (tinp) {
+        var tok = await fillSuggest(tinp, settings.productType);
+        rows.push({ label: 'Product type', ok: tok, note: tok ? 'set to ' + settings.productType : 'typed "' + settings.productType + '" but no matching suggestion appeared. Click the suggestion yourself.' });
+        tsec = null; tr = 'done';
+      }
+      if (tr === 'done') {}
+      else if (tsec) tr = await selectInWidget(tsec, [settings.productType]);
       else {
         var tel = findControl([/product type/], /meta|seo/);
         if (tel && setValue(tel, settings.productType)) tr = { confirmed: [settings.productType], unconfirmed: [], missing: [] };
       }
-      if (tr) rows.push({ label: 'Product type', ok: !tr.missing.length && !tr.unconfirmed.length, note: describe(tr, 'product type') });
+      if (tr === 'done') {}
+      else if (tr) rows.push({ label: 'Product type', ok: !tr.missing.length && !tr.unconfirmed.length, note: describe(tr, 'product type') });
       else rows.push({ label: 'Product type', ok: false, note: 'not found on this form' });
     }
 
@@ -514,6 +543,7 @@
       '<label>Price ranges (highest price | collection name)</label><textarea id="brk"></textarea>' +
       '<label><input type="checkbox" id="clr"> Untick other collections first</label>' +
       '<label>Product type</label><input type="text" id="ptype">' +
+      '<label>Quantity: a number, or "skip" to leave it alone, or "etsy" to copy the Etsy stock count</label><input type="text" id="qty">' +
       '<label>Shipping method (word to look for)</label><input type="text" id="ship">' +
       '<label><input type="checkbox" id="evo"> Evanston Made pieces only</label>' +
       '<div class="row"><button id="cap">Save form structure file</button></div>' +
@@ -521,12 +551,13 @@
     document.body.appendChild(host);
     var $ = function (s) { return root.querySelector(s); };
 
-    var settings = LS.get('hnprints-settings-v3', { collections: DEFAULT_COLLECTIONS, autoPrice: true, brackets: DEFAULT_BRACKETS, clearOthers: true, productType: DEFAULT_TYPE, shipping: 'USPS', evo: true });
+    var settings = LS.get('hnprints-settings-v3', { collections: DEFAULT_COLLECTIONS, autoPrice: true, brackets: DEFAULT_BRACKETS, clearOthers: true, productType: DEFAULT_TYPE, shipping: 'USPS', evo: true, qty: '1' });
+    if (settings.qty === undefined) settings.qty = '1';
     $('#cols').value = settings.collections.join('\n'); $('#autop').checked = settings.autoPrice; $('#brk').value = settings.brackets; $('#clr').checked = settings.clearOthers;
-    $('#ptype').value = settings.productType || ''; $('#ship').value = settings.shipping; $('#evo').checked = settings.evo;
+    $('#ptype').value = settings.productType || ''; $('#ship').value = settings.shipping; $('#qty').value = settings.qty; $('#evo').checked = settings.evo;
     function readSettings() {
       settings = { collections: $('#cols').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean), autoPrice: $('#autop').checked, brackets: $('#brk').value, clearOthers: $('#clr').checked,
-        productType: $('#ptype').value.trim(), shipping: $('#ship').value.trim(), evo: $('#evo').checked };
+        productType: $('#ptype').value.trim(), shipping: $('#ship').value.trim(), qty: $('#qty').value.trim().toLowerCase() || 'skip', evo: $('#evo').checked };
       LS.set('hnprints-settings-v3', settings); return settings;
     }
 
