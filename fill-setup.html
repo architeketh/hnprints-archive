@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Form Filler Setup</title>
+<style>
+  :root { --bg:#faf8f4; --card:#fff; --ink:#222; --muted:#6b6b6b; --line:#e4dfd5; --accent:#8a3b12; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161513; --card:#201f1c; --ink:#eee; --muted:#9a968d; --line:#35322d; --accent:#e0905a; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:17px/1.55 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  ol { padding-left:1.3em; } li { margin-bottom:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:16px 0; }
+  a.bm { display:inline-block; padding:12px 18px; background:var(--accent); color:#fff; border-radius:10px; text-decoration:none; font-weight:700; cursor:grab; }
+  button { font:inherit; padding:8px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer; }
+  textarea { width:100%; height:90px; font:13px/1.4 ui-monospace,Consolas,monospace; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
+  .note { color:var(--muted); font-size:.92rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>One-button form filler</h1>
+  <p class="sub">Fills in the seller "add product" form for any hnPrints piece. It never clicks Save for you.</p>
+
+  <div class="card">
+    <p><strong>Step 1.</strong> Show your bookmarks bar: press <b>Ctrl+Shift+B</b> in Chrome or Edge.</p>
+    <p><strong>Step 2.</strong> Drag this button up to the bookmarks bar and let go:</p>
+    <p><a class="bm" id="bm" href="#">hnPrints Fill</a></p>
+    <p class="note">If dragging doesn't work, use the copy option below.</p>
+  </div>
+
+  <h2>How to use it</h2>
+  <ol>
+    <li>Sign in to the seller site and open the <b>Add product</b> page: <a href="https://info-748.sp-seller.webkul.com/index.php?p=add_product" target="_blank" rel="noopener">info-748.sp-seller.webkul.com</a></li>
+    <li>Click the <b>hnPrints Fill</b> bookmark. A small panel appears in the top-right corner.</li>
+    <li>Type part of a piece's name, or its number. Press the <b>down arrow</b> to move through matches.</li>
+    <li>Press <b>Enter</b>. The form fills in: title, description, price, quantity, tags, your collections, USPS shipping, and the images. The panel shows a &#10003; or &#10007; for each item.</li>
+    <li>Look the form over, then click the site's own <b>Save</b> button.</li>
+    <li>Back in the panel, click <b>Mark as added</b> so you can see which pieces you've finished. Then type the next name.</li>
+  </ol>
+
+  <div class="card">
+    <strong>If dragging doesn't work</strong>
+    <p class="note">Click Copy, then add a new bookmark by hand: right-click the bookmarks bar, choose <b>Add page</b>, name it <b>hnPrints Fill</b>, and paste this into the URL box.</p>
+    <textarea id="code" readonly></textarea>
+    <p><button id="copy">Copy</button> <span id="ok" class="note"></span></p>
+  </div>
+
+  <div class="card">
+    <strong>If something doesn't fill</strong>
+    <p class="note">Open the panel's <b>Settings</b> and click <b>Save form structure file</b>. Send me the file it downloads. It lists the names of the form's boxes only, nothing you typed, and I'll adjust the filler to match.</p>
+  </div>
+</main>
+<script>
+  var base = location.href.replace(/[^/]*$/, '');
+  var code = "javascript:(function(){var s=document.createElement('script');s.src='" + base + "filler.js?v='+Date.now();document.body.appendChild(s);})();";
+  document.getElementById('bm').setAttribute('href', code);
+  document.getElementById('bm').onclick = function (e) { e.preventDefault(); alert('Drag this button up to your bookmarks bar. Do not click it here.'); };
+  document.getElementById('code').value = code;
+  document.getElementById('copy').onclick = function () {
+    var t = document.getElementById('code'); t.select();
+    try { navigator.clipboard.writeText(code); } catch (e) { document.execCommand('copy'); }
+    document.getElementById('ok').textContent = 'Copied';
+  };
+</script>
+</body>
+</html>
